@@ -29,6 +29,7 @@ Additional guidelines:
 -   Prioritise readability over premature optimisation.
 -   DB migrations should be created with "sqlx migrate add <name>".
 -   Use "cargo add" to add dependencies so that we know they are up to date.
+    However, they should be alphabetically placed in the Cargo.toml files.
 
 ## 2. Modules and Project Structure
 
