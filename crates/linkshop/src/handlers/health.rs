@@ -1,6 +1,11 @@
+pub mod dto;
+
 use actix_web::HttpResponse;
-use serde_json::json;
+
+pub use dto::HealthResponse;
 
 pub async fn health_check() -> HttpResponse {
-    HttpResponse::Ok().json(json!({ "status": "ok" }))
+    HttpResponse::Ok().json(HealthResponse {
+        status: "ok".to_string(),
+    })
 }

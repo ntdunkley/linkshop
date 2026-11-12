@@ -13,25 +13,6 @@ pub struct Business {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct BusinessProfile {
-    pub id: Uuid,
-    pub name: String,
-    pub slug: String,
-    pub description: Option<String>,
-}
-
-impl From<Business> for BusinessProfile {
-    fn from(b: Business) -> Self {
-        Self {
-            id: b.id,
-            name: b.name,
-            slug: b.slug,
-            description: b.description,
-        }
-    }
-}
-
 /// Represents an authenticated or resolved tenant in the application.
 /// Queries that require business isolation must accept `&Tenant`
 /// or derive scoping from it rather than accepting unverified identifiers.

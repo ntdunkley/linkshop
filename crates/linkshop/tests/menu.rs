@@ -1,14 +1,9 @@
 use actix_web::{http::StatusCode, test};
-use linkshop::{
-    build_app, error::ErrorResponse, handlers::menu::MenuResponse, testing::TestContext,
-};
+use linkshop::{error::ErrorResponse, handlers::menu::dto::MenuResponse, testing::TestContext};
 
 #[actix_web::test]
 async fn returns_business_and_items_for_valid_slug() {
-    let Some(ctx) = TestContext::try_new().await else {
-        eprintln!("PostgreSQL not reachable; skipping integration test");
-        return;
-    };
+    let ctx = TestContext::new().await;
 
     let business = ctx
         .create_business(
@@ -39,7 +34,7 @@ async fn returns_business_and_items_for_valid_slug() {
     )
     .await;
 
-    let app = test::init_service(build_app(ctx.pool.clone())).await;
+    let app = test::init_service(ctx.app()).await;
 
     let req = test::TestRequest::get().uri("/b/tasty-bites").to_request();
     let resp = test::call_service(&app, req).await;
@@ -66,12 +61,9 @@ async fn returns_business_and_items_for_valid_slug() {
 
 #[actix_web::test]
 async fn returns_404_for_unknown_slug() {
-    let Some(ctx) = TestContext::try_new().await else {
-        eprintln!("PostgreSQL not reachable; skipping integration test");
-        return;
-    };
+    let ctx = TestContext::new().await;
 
-    let app = test::init_service(build_app(ctx.pool.clone())).await;
+    let app = test::init_service(ctx.app()).await;
 
     let req = test::TestRequest::get()
         .uri("/b/non-existent-shop")
@@ -87,12 +79,9 @@ async fn returns_404_for_unknown_slug() {
 
 #[actix_web::test]
 async fn returns_404_for_reserved_slugs() {
-    let Some(ctx) = TestContext::try_new().await else {
-        eprintln!("PostgreSQL not reachable; skipping integration test");
-        return;
-    };
+    let ctx = TestContext::new().await;
 
-    let app = test::init_service(build_app(ctx.pool.clone())).await;
+    let app = test::init_service(ctx.app()).await;
 
     for reserved in ["admin", "api", "login"] {
         let req = test::TestRequest::get()
@@ -109,10 +98,7 @@ async fn returns_404_for_reserved_slugs() {
 
 #[actix_web::test]
 async fn does_not_return_unpublished_businesses() {
-    let Some(ctx) = TestContext::try_new().await else {
-        eprintln!("PostgreSQL not reachable; skipping integration test");
-        return;
-    };
+    let ctx = TestContext::new().await;
 
     let business = ctx
         .create_business("Draft Cafe", "draft-cafe", None, false)
@@ -121,7 +107,7 @@ async fn does_not_return_unpublished_businesses() {
     ctx.create_item(business.id, "Latte", None, 350, true, 1)
         .await;
 
-    let app = test::init_service(build_app(ctx.pool.clone())).await;
+    let app = test::init_service(ctx.app()).await;
 
     let req = test::TestRequest::get().uri("/b/draft-cafe").to_request();
     let resp = test::call_service(&app, req).await;
@@ -134,10 +120,7 @@ async fn does_not_return_unpublished_businesses() {
 
 #[actix_web::test]
 async fn only_returns_data_for_requested_business() {
-    let Some(ctx) = TestContext::try_new().await else {
-        eprintln!("PostgreSQL not reachable; skipping integration test");
-        return;
-    };
+    let ctx = TestContext::new().await;
 
     let business_a = ctx
         .create_business("Pizza Place", "pizza-place", None, true)
@@ -151,7 +134,7 @@ async fn only_returns_data_for_requested_business() {
     ctx.create_item(business_b.id, "Cheeseburger", None, 850, true, 1)
         .await;
 
-    let app = test::init_service(build_app(ctx.pool.clone())).await;
+    let app = test::init_service(ctx.app()).await;
 
     let req = test::TestRequest::get().uri("/b/pizza-place").to_request();
     let resp = test::call_service(&app, req).await;
@@ -167,10 +150,7 @@ async fn only_returns_data_for_requested_business() {
 
 #[actix_web::test]
 async fn returns_unavailable_items_flagged_as_unavailable() {
-    let Some(ctx) = TestContext::try_new().await else {
-        eprintln!("PostgreSQL not reachable; skipping integration test");
-        return;
-    };
+    let ctx = TestContext::new().await;
 
     let business = ctx
         .create_business("Sweet Bakery", "sweet-bakery", None, true)
@@ -188,7 +168,7 @@ async fn returns_unavailable_items_flagged_as_unavailable() {
     )
     .await;
 
-    let app = test::init_service(build_app(ctx.pool.clone())).await;
+    let app = test::init_service(ctx.app()).await;
 
     let req = test::TestRequest::get().uri("/b/sweet-bakery").to_request();
     let resp = test::call_service(&app, req).await;
@@ -217,16 +197,13 @@ async fn returns_unavailable_items_flagged_as_unavailable() {
 
 #[actix_web::test]
 async fn supports_api_route_aliases() {
-    let Some(ctx) = TestContext::try_new().await else {
-        eprintln!("PostgreSQL not reachable; skipping integration test");
-        return;
-    };
+    let ctx = TestContext::new().await;
 
     let _business = ctx
         .create_business("Tea Room", "tea-room", None, true)
         .await;
 
-    let app = test::init_service(build_app(ctx.pool.clone())).await;
+    let app = test::init_service(ctx.app()).await;
 
     for path in [
         "/b/tea-room",

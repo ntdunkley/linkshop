@@ -1,17 +1,14 @@
+pub mod dto;
+
 use actix_web::{HttpResponse, web};
-use serde::{Deserialize, Serialize};
+
+pub use dto::{BusinessProfile, MenuItem, MenuResponse};
 
 use crate::{
-    domain::{BusinessProfile, MenuItem, Slug, Tenant},
+    domain::{Slug, Tenant},
     error::AppError,
     repos::{BusinessRepository, ItemRepository, PgBusinessRepository, PgItemRepository},
 };
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct MenuResponse {
-    pub business: BusinessProfile,
-    pub items: Vec<MenuItem>,
-}
 
 pub async fn get_menu(
     path: web::Path<String>,
