@@ -10,21 +10,32 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  lint:
-    name: Format & Lint
+  fmt:
+    name: Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt, clippy
+          components: rustfmt
       - name: Format check
         run: cargo fmt --all -- --check
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
   test:
     name: Build & Test
+    needs: fmt
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -46,7 +57,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Build
-        run: cargo build --workspace
+      - uses: Swatinem/rust-cache@v2
       - name: Test
         run: cargo test --workspace
