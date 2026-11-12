@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 
-use crate::{domain::Business, error::AppError};
+use crate::{domain::Business, error::AppError, repos::models::BusinessRow};
 
 #[allow(async_fn_in_trait)]
 pub trait BusinessRepository: Send + Sync {
@@ -22,7 +22,7 @@ impl PgBusinessRepository {
 
 impl BusinessRepository for PgBusinessRepository {
     async fn find_by_slug(&self, slug: &str) -> Result<Option<Business>, AppError> {
-        let business = sqlx::query_as::<_, Business>(
+        let business = sqlx::query_as::<_, BusinessRow>(
             r#"
             SELECT id, name, slug, description, is_published, created_at, updated_at
             FROM businesses
@@ -33,11 +33,11 @@ impl BusinessRepository for PgBusinessRepository {
         .fetch_optional(&self.pool)
         .await?;
 
-        Ok(business)
+        Ok(business.map(Business::from))
     }
 
     async fn find_published_by_slug(&self, slug: &str) -> Result<Option<Business>, AppError> {
-        let business = sqlx::query_as::<_, Business>(
+        let business = sqlx::query_as::<_, BusinessRow>(
             r#"
             SELECT id, name, slug, description, is_published, created_at, updated_at
             FROM businesses
@@ -48,7 +48,7 @@ impl BusinessRepository for PgBusinessRepository {
         .fetch_optional(&self.pool)
         .await?;
 
-        Ok(business)
+        Ok(business.map(Business::from))
     }
 
     async fn insert(&self, business: &Business) -> Result<(), AppError> {

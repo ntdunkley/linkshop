@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::{domain::Item, error::AppError};
+use crate::{domain::Item, error::AppError, repos::models::ItemRow};
 
 #[allow(async_fn_in_trait)]
 pub trait ItemRepository: Send + Sync {
@@ -22,7 +22,7 @@ impl PgItemRepository {
 
 impl ItemRepository for PgItemRepository {
     async fn list_by_business_id(&self, business_id: Uuid) -> Result<Vec<Item>, AppError> {
-        let items = sqlx::query_as::<_, Item>(
+        let items = sqlx::query_as::<_, ItemRow>(
             r#"
             SELECT id, business_id, name, description, price, is_available, sort_order, created_at, updated_at
             FROM items
@@ -34,7 +34,7 @@ impl ItemRepository for PgItemRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(items)
+        Ok(items.into_iter().map(Item::from).collect())
     }
 
     async fn insert(&self, item: &Item) -> Result<(), AppError> {

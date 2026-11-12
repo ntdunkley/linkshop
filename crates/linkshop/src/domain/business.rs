@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, PartialEq, Eq)]
+/// A business registered on the platform.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Business {
     pub id: Uuid,
     pub name: String,

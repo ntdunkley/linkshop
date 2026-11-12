@@ -1,8 +1,8 @@
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, PartialEq, Eq)]
+/// An item listed on a business's menu.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Item {
     pub id: Uuid,
     pub business_id: Uuid,
