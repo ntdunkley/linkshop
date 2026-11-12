@@ -2,250 +2,256 @@
 
 ## 1. Overview
 
-Many small businesses run entirely through WhatsApp. They have no web presence, so there is nowhere to send a new client to see what they offer. This project is a multi-tenant website platform where each business gets its own public page, which they manage themselves.
+Many small businesses run entirely through WhatsApp. They have no web presence, so there is nowhere to send a client to see what they offer, and orders and questions get buried in chat threads.
 
-Each business gets a unique link (e.g. `yourplatform.com/b/joes-bakery`) to share with clients. Clients only ever see that one business, never the others.
+This project is a multi-tenant website platform where each business gets its own public page, which they manage themselves. Each business gets a unique link to share with clients. Clients only ever see that one business, never the others.
+
+**First use case (MVP focus):** a friend who makes food to order and delivers it. His customers currently ask for meals over WhatsApp, with no easy way to see what he makes or what it costs. He needs a menu with prices and a way for customers to place an order that notifies him.
+
+The platform is built around this use case, but kept generic so any business that sells a list of things (food, baked goods, crafts, services) can use it.
 
 ## 2. Goals and Non-Goals
 
 **Goals**
-- Give each business a simple, good-looking public page in minutes
-- Let business owners edit their own content without help
-- Let us (the admins) onboard, manage, and suspend businesses
-- Keep every business's data and page isolated from the others
-- Make it easy for clients to contact the business, especially via WhatsApp
+- Give each business a simple, good-looking public page with a menu or catalogue
+- Let customers browse items with photos and prices
+- Let customers submit an order request through the page, which notifies the business
+- Keep WhatsApp as the channel for questions and follow-up
+- Let business owners manage their own content and orders without help
+- Let us (the admins) onboard and manage businesses
+- Keep each business's data and page isolated from the others
 
 **Non-goals (for v1)**
-- Online payments or checkout
-- Full e-commerce or inventory
-- Custom code per business
+- Online payments
+- Inventory or stock tracking
+- Delivery fee calculation, routing, or tracking
+- Custom fields or custom layouts per business
+- Customer accounts
 - Replacing WhatsApp (we complement it)
 
 ## 3. Users and Roles
 
 | Role | Description | Access |
 |---|---|---|
-| Client / visitor | Someone who opens a business link | Public page only, no login |
-| Business owner | Signed-up business | Edit their own page only |
+| Customer | Someone who opens a business link and places an order request | Public page only, no login |
+| Business owner | A signed-up business | Manage their own page, menu, and orders |
 | Admin (us) | Platform operators | Create/suspend businesses, view all, support |
 
-## 4. Core Features
+## 4. MVP Scope
 
 ### Public business page
-- Business name, logo, cover image, description
-- Services or product list (name, description, price, photo)
-- Opening hours and location (with map link)
-- Contact buttons: **"Chat on WhatsApp"** (a `wa.me` link with an optional prefilled message), phone, email
-- Photo gallery
-- Social links
-- Mobile-first design (almost all visitors will arrive from a phone)
+- Business name, logo, short description
+- **Menu:** a list of items, each with a photo, name, short description, and price
+- Contact details and a **"Message on WhatsApp"** button for questions
+- Opening hours and delivery area / notes (free text)
+- Mobile-first design, since most visitors will arrive from a phone via WhatsApp
+
+### Ordering
+- Customer adds items to an order and sets quantities
+- Customer fills in a short order form:
+  - Name
+  - Phone number (and optionally email)
+  - Delivery or collection
+  - Delivery address (if delivery)
+  - Requested date/time
+  - **A free-text notes box** for anything extra (allergies, changes, special requests)
+- Customer submits the order. This is an **order request**, not a payment or a guaranteed sale
+- Customer sees a confirmation screen with a reference number and a message that the business will be in touch
+- The business owner is **notified immediately** when a new order arrives
 
 ### Business dashboard (login required)
-- Edit profile, services, hours, gallery
-- Choose a theme/colour from a few presets
-- Preview before publishing
-- Publish / unpublish toggle
-- Basic analytics (page views, WhatsApp button clicks)
+- Edit business profile, contact details, and hours
+- **Manage menu items:** add, edit, remove, reorder; upload a photo; set a name, description, and price; mark an item as unavailable without deleting it
+- **View and manage orders:** see new orders, order contents, customer details, and notes
+- Update order status (for example: New, Confirmed, Completed, Declined)
+- Quick "reply on WhatsApp" link on each order that opens a chat with the customer
+- Publish / unpublish the page
 
 ### Admin panel
-- Create, invite, edit, suspend, and delete businesses
+- Create, invite, edit, and suspend businesses
 - View all businesses and their status
-- Manage slugs (reserved names, conflicts)
-- Basic audit log of who changed what
+- Manage business links (slugs) and reserved names
+- Basic audit log
 
-## 5. Architecture
+## 5. Key User Flows
 
-```
-Browser (React SPA)  <->  Rust API (Axum)  <->  PostgreSQL
-                              |
-                              +--> Object storage (images)
-                              +--> Google OIDC (auth)
-```
+**Customer ordering**
+1. Opens the business link (shared on WhatsApp)
+2. Browses the menu
+3. Adds items, fills in the order form, submits
+4. Sees a confirmation with a reference number
 
-### Frontend: React
-- Vite + React + TypeScript
-- Router with three areas: public pages, business dashboard, admin
-- Tailwind CSS (or similar) for fast, consistent styling
-- **SEO consideration:** a client-rendered SPA is weak for search engines and link previews. Since links will be shared on WhatsApp, **link previews (Open Graph tags) matter a lot**. Options:
-  - Use a framework with server-side rendering (Next.js or Remix), or
-  - Have the Rust backend serve pre-rendered HTML with meta tags for public pages, while the dashboard stays a SPA
-  - Decide this early; it is the biggest frontend architecture choice
+**Business owner receiving an order**
+1. Gets a notification (see section 6)
+2. Opens the dashboard and reviews the order
+3. Contacts the customer on WhatsApp if needed, then confirms or declines
+4. Marks the order as completed once delivered
 
-### Backend: Rust
-- **Axum** web framework (Tokio-based, well maintained)
-- **SQLx** for async, compile-time-checked Postgres queries
-- `openidconnect` or `oauth2` crate for Google login
-- `tower-sessions` or signed/encrypted cookies for sessions
-- `serde` for JSON, `tracing` for logs, `validator` for input checks
-- `tower-http` for CORS, compression, rate limiting
+**Onboarding a business**
+1. Admin creates the business and sends an invite
+2. Owner signs in, fills in their profile, and adds menu items (or we do the first setup for them)
+3. Owner publishes the page and shares the link
 
-### Database: PostgreSQL
-Suggested starting schema:
+## 6. Order Notifications
 
-- `businesses` (id, slug, name, description, logo_url, status, theme, created_at)
-- `business_contacts` (business_id, whatsapp_number, phone, email, address, maps_url)
-- `business_hours` (business_id, weekday, open_time, close_time)
-- `services` (id, business_id, name, description, price, image_url, sort_order)
-- `gallery_images` (id, business_id, url, sort_order)
-- `users` (id, google_sub, email, name, role, created_at)
-- `business_members` (user_id, business_id, role): links owners to businesses
-- `invitations` (id, business_id, email, token, expires_at, used_at)
-- `page_events` (id, business_id, type, created_at): for simple analytics
-- `audit_log` (id, user_id, action, target, created_at)
+- **MVP:** email notification to the business owner for every new order, plus a visible "new orders" list in the dashboard
+- Optional, low-effort addition: after submitting, offer the customer a button to send their order summary to the business via WhatsApp as well
+- **Later:** automated WhatsApp or SMS notifications to the owner. These typically need a paid business messaging service, so they are out of scope for now
+- Open question: should the customer also receive an email confirmation if they provide an email address?
+
+## 7. Making It Generic
+
+To keep the platform reusable beyond food:
+
+- Use neutral terms in the code and data model: **business**, **items**, **orders**. Only the display wording changes (for example "Menu" vs "Products" vs "Services")
+- Each item has the same small set of fields: photo, name, description, price, availability
+- Orders are a list of items plus customer details and a free-text note
+- A per-business setting controls whether ordering is enabled, and whether delivery, collection, or both are offered
+- No per-business custom fields in v1. The notes box covers special requests
+
+## 8. Page Structure and Look
+
+Fixed structure, with a few style options, rather than a page builder:
+
+1. Header: logo, name, tagline, WhatsApp button
+2. About: short description
+3. Menu / catalogue
+4. Order summary and form
+5. Hours, delivery area, and contact details
+
+Owners control content, and can choose from a small number of themes and an accent colour. We control layout, so every page looks good by default.
+
+Design priorities: mobile first, fast loading, clear prices, large appealing photos, and a very simple ordering flow.
+
+## 9. Architecture (High Level)
+
+- **Frontend:** React application with a public area (customer-facing), a business dashboard, and an admin area
+- **Backend:** Rust API
+- **Data storage:** a relational database for businesses, items, orders, and users, plus file storage for images
+- **Authentication:** for business owners and admins only (see section 10). Customers do not log in
+- **Repositories:** two separate repos, one for the frontend and one for the backend. The API contract between them should be documented (for example with an OpenAPI spec) so the two stay in sync
+
+Specific libraries, frameworks, and hosting choices are deliberately left open for now.
+
+**Things to decide early**
+- How public pages are rendered. Business links will mostly be shared on WhatsApp, so **link previews** (title, image, description) need to work well, which affects whether pages are rendered on the server or in the browser
+- URL structure for businesses: a path per business (for example `/b/business-name`) is simplest to start with; subdomains or custom domains can come later
 
 ### Multi-tenancy
-- **Shared database, shared schema**, with a `business_id` on every tenant-owned row
-- Every query on the dashboard side must be scoped by the authenticated user's business. Enforce this in one place (a repository layer or middleware), not ad hoc
-- Optional extra safety: Postgres Row-Level Security
-- **Public URL strategy:**
-  - Path-based (`/b/slug`): simplest, one domain, one TLS cert. **Recommended for v1**
-  - Subdomain-based (`slug.yourplatform.com`): nicer branding, needs wildcard DNS + wildcard cert
-  - Custom domains per business: a possible paid upgrade later, needs automated certificate issuance
+- All businesses share one system, and every business-owned record carries its business identifier
+- Business owners can only ever access their own business's data. This check should live in one central place rather than being repeated ad hoc across the code
+- Public pages only ever return data for the single business in the link
 
-### File and image storage
-- Do not store images in Postgres
-- Use S3-compatible storage (Cloudflare R2, Backblaze B2, S3) with a CDN in front
-- Resize and compress on upload (WhatsApp-sourced photos are often huge)
-- Enforce size and type limits server-side
+## 10. Authentication and Authorisation
 
-## 6. Authentication and Authorisation
+Login is only for business owners and admins.
 
-**Plan:** Google as OpenID Connect provider (Authorization Code flow with PKCE).
+**Options under consideration**
+- Sign in with Google (OpenID Connect)
+- Magic email link (a one-time login link sent by email)
+- Possibly both, with one as the fallback
 
-**Flow**
-1. User clicks "Sign in with Google"
-2. Backend redirects to Google with `state`, `nonce`, and a PKCE challenge
-3. Google redirects back with a code
-4. Backend exchanges the code, validates the ID token (signature, `aud`, `iss`, `exp`, `nonce`)
-5. Backend looks up the user by Google `sub` (not by email alone) and starts a session
-6. Session stored in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie
+**Considerations**
+- Some owners may not have, or want to use, a Google account
+- Magic links remove the need for passwords and Google setup, but make email deliverability and link security our responsibility
+- Whichever is chosen, identify users by an internal ID, not by email alone, so login methods can be added or changed later
+- Owners can only sign in if invited. No open self-registration in v1
+- Admins are defined by us, never self-assigned
+- Every request must check the user's role and which business they belong to
 
-**Authorisation**
-- Roles: `admin`, `owner`
-- Admins are defined by an allowlist (config or DB flag), never self-assigned
-- Business owners can only sign in if **we invited them** (invite link tied to their business). No open self-registration, at least in v1
-- Every API route checks role *and* business ownership
+## 11. Data Overview (Conceptual)
 
-**Things to think about**
-- Some small business owners may not have, or want to use, a Google account. Consider a fallback later (email magic link, or phone OTP via WhatsApp)
-- Matching on `sub` is safer than on email, since emails can change
-- Plan how to handle a business owner who loses access to their Google account (admin recovery process)
-- CSRF protection on all state-changing requests (SameSite cookie + CSRF token or origin checks)
+- **Business:** name, link (slug), description, logo, contact details, hours, theme, status, ordering settings
+- **Item:** belongs to a business; name, description, photo, price, availability, sort order
+- **Order:** belongs to a business; reference number, customer name, phone, optional email, delivery or collection, address, requested time, notes, status, created time
+- **Order line:** an item, quantity, and the price at the time of ordering (so later price changes do not alter past orders)
+- **User:** owner or admin; linked to a business
+- **Invitation:** used to onboard new business owners
+- **Audit log:** record of admin and owner actions
 
-## 7. API Sketch
+## 12. Security and Abuse Prevention
 
-**Public**
-- `GET /api/public/businesses/:slug`: business page data
-- `POST /api/public/businesses/:slug/events`: record a view or click
+- Validate all input, and safely display business- and customer-supplied text
+- The public order form is open to anyone, so it needs spam protection: rate limiting and a lightweight bot check
+- Limit upload sizes and types for images, and resize them on upload
+- Never trust the client to say which business it belongs to; derive it from the session
+- Reserved link names (for example `admin`, `api`, `login`)
+- Keep customer personal data (names, phone numbers, addresses) to what is needed, and plan how long it is kept
 
-**Auth**
-- `GET /auth/google/login`, `GET /auth/google/callback`, `POST /auth/logout`
-- `GET /api/me`
-
-**Business dashboard**
-- `GET/PUT /api/my/business`
-- `CRUD /api/my/business/services`
-- `POST /api/my/business/images` (upload), `DELETE /api/my/business/images/:id`
-- `POST /api/my/business/publish`
-
-**Admin**
-- `GET/POST /api/admin/businesses`
-- `PATCH /api/admin/businesses/:id` (suspend, edit slug)
-- `POST /api/admin/businesses/:id/invite`
-- `GET /api/admin/audit-log`
-
-## 8. Infrastructure and Deployment
-
-- **Hosting:** a small VPS (Hetzner, DigitalOcean) or a platform like Fly.io/Railway. A single Rust binary plus Postgres is cheap to run
-- **Containerisation:** Docker for consistent builds
-- **Reverse proxy / TLS:** Caddy or Nginx, or Cloudflare in front
-- **CI/CD:** GitHub Actions (lint, test, build, deploy)
-- **Environments:** local, staging, production
-- **Backups:** automated daily Postgres backups, tested restores
-- **Monitoring:** uptime check, error tracking (e.g. Sentry), structured logs
-- **Secrets:** environment variables or a secrets manager; never in the repo
-
-## 9. Security Checklist
-
-- Validate and sanitise all input; escape output (guard against XSS in business-supplied text)
-- Reserved slugs (`admin`, `api`, `login`, etc.) and slug format rules
-- Rate limit login, uploads, and public endpoints
-- Strict upload validation (type, size, image re-encoding)
-- Content Security Policy headers
-- Dependency auditing (`cargo audit`, `npm audit`)
-- Least-privilege DB user
-- Never trust the client for `business_id`; always derive it from the session
-
-## 10. Legal and Compliance
+## 13. Legal and Compliance
 
 - Privacy policy and terms of service
-- Data protection law for your region (e.g. POPIA in South Africa, GDPR in the EU/UK): you will store business-owner personal data and possibly visitor analytics
-- Cookie notice if analytics or non-essential cookies are used (cookie-free analytics avoids most of this)
-- Clear policy on who owns the content and what happens when a business leaves
-- Content moderation and a takedown process for abuse
+- Data protection law for your region applies, since we store customer and owner personal data
+- Make clear that orders are requests that the business confirms, and that the business (not the platform) is responsible for the food, pricing, and delivery
+- Process for removing content or suspending a business
 
-## 11. Business Model (to discuss)
+## 14. Business Model (To Discuss)
 
-- Free for early adopters / pilot businesses
-- Monthly subscription per business
-- Paid tiers: custom domain, more photos, analytics, remove platform branding
-- One-time setup fee where you build the page for them
+- Free for the first pilot business(es)
+- Later: a monthly subscription per business
+- Possible paid extras: custom domain, more photos, order history and reports, removal of platform branding
 
-## 12. Roadmap
+## 15. Roadmap
 
-**Phase 0: Discovery (1 week)**
-- Talk to the two known businesses; list what they actually need on a page
-- Collect examples they like
-- Decide: SSR vs SPA, path vs subdomain
+**Phase 0: Discovery (about 1 week)**
+- Sit down with the friend and list exactly what his menu, ordering, and delivery process looks like
+- Collect sample photos and menu items to use for testing
+- Decide page rendering approach and URL structure
+- Decide the login method
 
-**Phase 1: MVP (4 to 8 weeks)**
-- Rust API skeleton, Postgres, migrations
-- Google login + invitation flow
-- Business dashboard: profile, services, hours, images
-- Public page with one clean, responsive template
-- Admin panel: create/invite/suspend
-- Deploy to staging, then onboard the two pilot businesses
+**Phase 1: MVP**
+- Business profile and menu management
+- Public page with menu and photos
+- Order request form and confirmation
+- Order email notification and dashboard order list with statuses
+- WhatsApp contact button and "reply on WhatsApp" link
+- Owner login, admin panel, and invitations
+- Deploy and onboard the first business
 
 **Phase 2: Polish**
-- Open Graph previews, SEO basics
-- Basic analytics
-- A few themes
-- QR code generator for each business link (useful for print and storefronts)
+- Link previews and SEO basics
+- A few themes and an accent colour
+- Order history and simple stats
+- QR code for each business link
+- Customer email confirmation
 
 **Phase 3: Growth**
+- Automated WhatsApp/SMS order notifications
+- Online payments
 - Custom domains
 - Subscription billing
-- Extra login methods
-- Optional WhatsApp integrations (e.g. WhatsApp Business catalogue sync)
+- Item categories, options, and extras
+- Support for more business types
 
-## 13. Risks
+## 16. Risks
 
 | Risk | Mitigation |
 |---|---|
-| Tenant data leakage between businesses | Central scoping layer, tests for it, optional RLS |
-| Owners find the dashboard too complex | Keep v1 tiny; test with the two pilot businesses |
-| Google-only login excludes some owners | Plan a fallback login early |
-| Poor link previews on WhatsApp | Server-rendered meta tags from day one |
-| Scope creep | Hold the non-goals list; ship the MVP first |
-| Image storage costs / abuse | Size limits, compression, per-business quotas |
-| Two-person bus factor | Document decisions; keep the stack small |
+| Orders are missed because notifications fail or are ignored | Reliable email delivery; clear "new orders" view in the dashboard; test with the real business |
+| Owner finds the dashboard too complex | Keep it very small; test with the friend early; offer to do initial setup for them |
+| Spam or fake orders | Rate limiting, bot check, and the owner confirms every order |
+| Data leaking between businesses | Central access checks and tests for them |
+| Customers expect instant confirmation or payment | Clear wording that this is an order request |
+| Scope creep | Hold to the MVP and non-goals list |
+| Poor WhatsApp link previews | Plan for this in the rendering decision |
 
-## 14. Open Questions
+## 17. Open Questions
 
-1. Path-based URLs or subdomains for v1?
-2. SSR framework, or Rust-rendered public pages with a React dashboard?
-3. Will we build pages *for* businesses, or are they fully self-service?
-4. What is the pricing and who handles billing and support?
-5. Which languages must the pages support (single vs multi-language)?
-6. Do businesses need a booking or enquiry form, or is WhatsApp contact enough?
-7. Who owns the project legally (partnership, company), and how is revenue split?
+1. How does the friend currently handle orders, timing, and delivery? Is there a cut-off time or minimum order?
+2. Should orders ask for a requested date/time, or just "as soon as possible"?
+3. Is delivery free, or does the owner want to add a delivery fee line?
+4. Should prices be shown in a single currency only?
+5. Will we set up each business for the owner at first, or is it fully self-service?
+6. Which login method(s) to use?
+7. Who handles support, pricing, and billing, and how is the project owned and revenue split?
+8. Do customers need an email confirmation, or is on-screen confirmation plus WhatsApp enough?
 
-## 15. Immediate Next Steps
+## 18. Immediate Next Steps
 
-- [ ] Interview the two businesses and write down their top 5 needs
-- [ ] Decide on rendering approach and URL structure
-- [ ] Set up two separate repos (one for the React frontend, one for the Rust backend), each with its own CI and Docker setup
+- [ ] Walk through the friend's ordering process and collect real menu items and photos
+- [ ] Decide page rendering approach and URL structure
+- [ ] Decide the login method
+- [ ] Sketch wireframes: public menu page, order form, owner dashboard (menu and orders)
+- [ ] Set up two repositories (frontend and backend) with basic CI
 - [ ] Register a domain name
-- [ ] Create a Google Cloud project and OAuth credentials
-- [ ] Sketch wireframes of the public page and dashboard
-- [ ] Define the MVP scope in writing and agree on it with your friend
+- [ ] Agree the MVP scope in writing with your friend
