@@ -27,7 +27,8 @@ Additional guidelines:
 -   Prefer explicit error handling.
 -   Do not introduce unnecessary abstractions.
 -   Prioritise readability over premature optimisation.
--   DB migrations should be created with "sqlx migrate add <name>"
+-   DB migrations should be created with "sqlx migrate add <name>".
+-   Use "cargo add" to add dependencies so that we know they are up to date.
 
 ## 2. Modules and Project Structure
 
