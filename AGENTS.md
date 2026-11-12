@@ -27,6 +27,7 @@ Additional guidelines:
 -   Prefer explicit error handling.
 -   Do not introduce unnecessary abstractions.
 -   Prioritise readability over premature optimisation.
+-   DB migrations should be created with "sqlx migrate add <name>"
 
 ## 2. Modules and Project Structure
 

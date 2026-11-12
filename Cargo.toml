@@ -1,6 +1,8 @@
-[package]
-name = "linkshop"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+resolver = "3"
+members = [
+    "crates/*",
+]
 
-[dependencies]
+[workspace.dependencies]
+oidc-login = { path="crates/oidc-login" }
